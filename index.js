@@ -1,7 +1,6 @@
 const { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 
 const TOKEN = process.env.TOKEN;
-// ID do seu canal de logs atualizado
 const CANAL_LOGS_ID = '1512516747390091496'; 
 
 const client = new Client({
@@ -11,6 +10,20 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ]
 });
+
+// --- BLOCO DE PROTEÇÃO CONTRA QUEDAS ---
+client.on('error', (err) => {
+    console.error('Erro detectado no cliente Discord:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Rejeição não tratada em:', promise, 'motivo:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Exceção não capturada (erro fatal evitável):', err);
+});
+// ---------------------------------------
 
 client.once('ready', () => {
     console.log(`🤖 Bot online como ${client.user.tag}!`);
