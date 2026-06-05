@@ -1,7 +1,6 @@
 const { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 
-const TOKEN = 'MTUxMjMzODcwNDMwNjU0MDY2Nw.GriaIt.Hstu1l7S2zLwqQUTJellFDeIOLBgwkIFqGtoac';
-
+const TOKEN = process.env.TOKEN;
 // ID do seu canal de logs atualizado
 const CANAL_LOGS_ID = '1512516747390091496'; 
 
