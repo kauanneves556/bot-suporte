@@ -2,20 +2,19 @@ const { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, Em
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
+const CARGO_PERMITIDO = '1512598694166528210'; // <--- COLOQUE O ID DO CARGO AQUI
 const LINK_FOTO = "https://cdn.discordapp.com/attachments/1512591953529803014/1512868218329632828/f44b70f9-c9a5-4c47-b6e7-15b08d369a1c.png";
 
-// Servidor para manter a Render viva
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot online!'); }).listen(3000);
 
-let estoque = { vendas: 0, ticket: 0, boasvindas: 0, complect: 0 };
+let estoque = { vendas: 36, ticket: 12, boasvindas: 53, complect: 10 };
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 client.once('ready', async () => {
-    console.log('🤖 Bot online!');
     const commands = [
-        { name: 'menu', description: 'Painel de compras' },
-        { name: 'repor', description: 'Repor estoque', options: [
+        { name: 'setup-loja', description: 'Envia o painel fixo da loja' },
+        { name: 'repor', description: 'Repor estoque (Apenas Owner)', options: [
             { name: 'item', type: 3, description: 'vendas, ticket, boasvindas, ou complect', required: true },
             { name: 'quantidade', type: 4, description: 'Quantidade', required: true }
         ]}
@@ -26,8 +25,12 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'menu') {
-            await interaction.deferReply({ ephemeral: true });
+        // PERMISSÃO: Verifica se tem o cargo
+        if (interaction.commandName === 'repor' && !interaction.member.roles.cache.has(CARGO_PERMITIDO)) {
+            return await interaction.reply({ content: '❌ Você não tem permissão para usar este comando.', ephemeral: true });
+        }
+
+        if (interaction.commandName === 'setup-loja') {
             const embed = new EmbedBuilder()
                 .setTitle("🛒 LOJA DRINIT")
                 .setColor('#0f0f0f')
@@ -40,18 +43,18 @@ client.on('interactionCreate', async interaction => {
                 { label: 'Bot Boas-vindas', value: 'boasvindas', emoji: '👋' },
                 { label: 'Bot Complect', value: 'complect', emoji: '🤖' }
             ]);
-            await interaction.editReply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
+            await interaction.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
+            await interaction.reply({ content: '✅ Painel enviado!', ephemeral: true });
         }
 
         if (interaction.commandName === 'repor') {
             const item = interaction.options.getString('item').toLowerCase().trim();
             const qtd = interaction.options.getInteger('quantidade');
-            
             if (estoque.hasOwnProperty(item)) {
                 estoque[item] += qtd;
-                await interaction.reply(`✅ Estoque de **${item}** agora é **${estoque[item]}**!`);
+                await interaction.reply(`✅ Estoque de **${item}** atualizado para **${estoque[item]}**!`);
             } else {
-                await interaction.reply(`❌ Erro: Produto '${item}' não existe. Use: vendas, ticket, boasvindas ou complect.`);
+                await interaction.reply(`❌ Produto não encontrado.`);
             }
         }
     }
@@ -59,7 +62,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isStringSelectMenu() && interaction.customId === 'menu_compra') {
         const prod = interaction.values[0];
         const canal = await interaction.guild.channels.create({ name: `${prod}-${interaction.user.username}`, type: ChannelType.GuildText });
-        await canal.send(`✅ Ticket aberto para **${prod.toUpperCase()}**. Usuário: ${interaction.user}`);
+        await canal.send(`✅ Ticket de compra para: **${prod.toUpperCase()}**. Usuário: ${interaction.user}`);
         await interaction.reply({ content: `✅ Canal criado: ${canal}`, ephemeral: true });
     }
 });
