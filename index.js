@@ -60,6 +60,17 @@ client.on('interactionCreate', async interaction => {
             await interaction.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
             await interaction.reply({ content: '✅ Painel suporte enviado!', ephemeral: true });
         }
+        
+        if (interaction.commandName === 'repor') {
+            const item = interaction.options.getString('item').toLowerCase().trim();
+            const qtd = interaction.options.getInteger('quantidade');
+            if (estoque.hasOwnProperty(item)) {
+                estoque[item] += qtd;
+                await interaction.reply(`✅ Estoque de **${item}** atualizado para **${estoque[item]}**!`);
+            } else {
+                await interaction.reply(`❌ Produto '${item}' não existe.`);
+            }
+        }
     }
 
     if (interaction.isStringSelectMenu()) {
