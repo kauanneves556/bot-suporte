@@ -1,17 +1,26 @@
 const { Client, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, ChannelType, REST, Routes, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { joinVoiceChannel } = require('@discordjs/voice');
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
 const CARGO_ID = '1512598694166528210';
 const LOGS_ID = '1512516747390091496';
+const VOICE_ID = '1512999528217710693'; // ID da call
 const LINK_FOTO = "https://cdn.discordapp.com/attachments/1512591953529803014/1512868218329632828/f44b70f9-c9a5-4c47-b6e7-15b08d369a1c.png";
 
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot online!'); }).listen(3000);
 
 let estoque = { vendas: 36, ticket: 12, boasvindas: 53, complect: 10 };
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates] });
 
 client.once('ready', async () => {
+    // Entrar na call automaticamente
+    const channel = client.channels.cache.get(VOICE_ID);
+    if (channel) {
+        joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
+        console.log('🤖 Bot entrou na call e está online!');
+    }
+
     const commands = [
         { name: 'setup-loja', description: 'Envia o painel da loja' },
         { name: 'setup-ticket', description: 'Envia o painel de suporte' },
@@ -53,11 +62,9 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // AQUI ESTÁ A DIFERENÇA: Separei a lógica de cada menu
     if (interaction.isStringSelectMenu()) {
         const canal = await interaction.guild.channels.create({ name: `${interaction.values[0]}-${interaction.user.username}`, type: ChannelType.GuildText });
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('claim_ticket').setLabel('Reivindicar').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId('close_ticket').setLabel('Fechar').setStyle(ButtonStyle.Danger)
         );
         await canal.send({ content: `✅ Ticket de **${interaction.values[0].toUpperCase()}** aberto por ${interaction.user}.`, components: [row] });
