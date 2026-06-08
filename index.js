@@ -5,7 +5,7 @@ const http = require('http');
 const TOKEN = process.env.TOKEN;
 const CARGO_ID = '1512598694166528210';
 const LOGS_ID = '1512516747390091496';
-const VOICE_ID = '1512999528217710693'; // ID da call
+const VOICE_ID = '1512999528217710693';
 const LINK_FOTO = "https://cdn.discordapp.com/attachments/1512591953529803014/1512868218329632828/f44b70f9-c9a5-4c47-b6e7-15b08d369a1c.png";
 
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot online!'); }).listen(3000);
@@ -14,11 +14,10 @@ let estoque = { vendas: 36, ticket: 12, boasvindas: 53, complect: 10 };
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates] });
 
 client.once('ready', async () => {
-    // Entrar na call automaticamente
     const channel = client.channels.cache.get(VOICE_ID);
     if (channel) {
         joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
-        console.log('🤖 Bot entrou na call e está online!');
+        console.log('🤖 Bot Reduto Online!');
     }
 
     const commands = [
@@ -38,7 +37,7 @@ client.on('interactionCreate', async interaction => {
         if (!interaction.member.roles.cache.has(CARGO_ID)) return await interaction.reply({ content: '❌ Sem permissão.', ephemeral: true });
 
         if (interaction.commandName === 'setup-loja') {
-            const embed = new EmbedBuilder().setTitle("🛒 LOJA DRINIT").setColor('#0f0f0f').setImage(LINK_FOTO)
+            const embed = new EmbedBuilder().setTitle("🛒 LOJA REDUTO").setColor('#0f0f0f').setImage(LINK_FOTO)
                 .setDescription(`Selecione um produto:\n\n🛒 Vendas: ${estoque.vendas}\n🎟️ Tickets: ${estoque.ticket}\n👋 Boas-vindas: ${estoque.boasvindas}\n🤖 Complect: ${estoque.complect}`);
             const menu = new StringSelectMenuBuilder().setCustomId('menu_compra').setPlaceholder('Escolha um produto').addOptions([
                 { label: 'Bot de Vendas', value: 'vendas', emoji: '🛒' },
@@ -51,7 +50,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.commandName === 'setup-ticket') {
-            const embed = new EmbedBuilder().setTitle("🔧 CENTRAL DE SUPORTE").setColor('#0f0f0f').setDescription("Selecione o motivo:");
+            const embed = new EmbedBuilder().setTitle("🔧 CENTRAL DE SUPORTE REDUTO").setColor('#0f0f0f').setDescription("Selecione o motivo:");
             const menu = new StringSelectMenuBuilder().setCustomId('menu_suporte').setPlaceholder('Escolha o motivo').addOptions([
                 { label: 'Suporte Geral', value: 'suporte', emoji: '🔧' },
                 { label: 'Reembolso', value: 'reembolso', emoji: '💰' },
@@ -74,20 +73,31 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.isStringSelectMenu()) {
-        const canal = await interaction.guild.channels.create({ name: `${interaction.values[0]}-${interaction.user.username}`, type: ChannelType.GuildText });
+        const canal = await interaction.guild.channels.create({ name: `ticket-${interaction.user.username}`, type: ChannelType.GuildText });
+
+        const embedTicket = new EmbedBuilder()
+            .setTitle("🛡️ REDUTO | ATENDIMENTO")
+            .setColor('#000000')
+            .setDescription(`Olá ${interaction.user}, aguarde um mediador para lhe atender.\n\n` +
+                            `👤 **Usuário:** ${interaction.user.tag}\n` +
+                            `⏳ **Aberto em:** <t:${Math.floor(Date.now() / 1000)}:R>\n\n` +
+                            `*Tenha em mãos as provas da aposta ou comprovante PIX.*`)
+            .setThumbnail(interaction.guild.iconURL())
+            .setFooter({ text: 'Reduto - Sistema de Atendimento' });
+
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('close_ticket').setLabel('Fechar').setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId('close_ticket').setLabel('✅ Resolvido').setStyle(ButtonStyle.Success)
         );
-        await canal.send({ content: `✅ Ticket de **${interaction.values[0].toUpperCase()}** aberto por ${interaction.user}.`, components: [row] });
+        await canal.send({ content: `${interaction.user} | <@&${CARGO_ID}>`, embeds: [embedTicket], components: [row] });
         await interaction.reply({ content: `✅ Canal criado: ${canal}`, ephemeral: true });
     }
 
     if (interaction.isButton() && interaction.customId === 'close_ticket') {
+        await interaction.reply(`🔒 Finalizando atendimento...`);
         const messages = await interaction.channel.messages.fetch();
         const transcript = messages.reverse().map(m => `[${m.author.tag}]: ${m.content}`).join('\n');
         const logChannel = interaction.guild.channels.cache.get(LOGS_ID);
-        if (logChannel) await logChannel.send({ content: `🔒 **Ticket Fechado**`, files: [{ attachment: Buffer.from(transcript), name: `transcript.txt` }] });
-        await interaction.reply(`🔒 Fechando canal...`);
+        if (logChannel) await logChannel.send({ content: `🔒 **Ticket Resolvido**\nAtendente: ${interaction.user.username}`, files: [{ attachment: Buffer.from(transcript), name: `transcript.txt` }] });
         setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
     }
 });
