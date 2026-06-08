@@ -1,9 +1,9 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, EmbedBuilder, ChannelType, REST, Routes, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, EmbedBuilder, ChannelType, REST, Routes, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
-const VOICE_ID = '1512999528217710693'; // Seu ID de canal de voz
+const VOICE_ID = '1512999528217710693'; 
 const LINK_FOTO = "https://cdn.discordapp.com/attachments/1512591953529803014/1512868218329632828/f44b70f9-c9a5-4c47-b6e7-15b08d369a1c.png";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates] });
@@ -11,18 +11,11 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot Online'); }).listen(3000);
 
 client.once('ready', async () => {
-    // Mantém o bot na call
     const channel = client.channels.cache.get(VOICE_ID);
     if (channel) {
-        joinVoiceChannel({
-            channelId: channel.id,
-            guildId: channel.guild.id,
-            adapterCreator: channel.guild.voiceAdapterCreator,
-            selfDeaf: true
-        });
+        joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
     }
 
-    // Registra os comandos (adicione aqui outros comandos que você tinha)
     await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { 
         body: [{ name: 'setup-ticket', description: 'Cria o painel de suporte' }] 
     });
@@ -53,7 +46,6 @@ client.on('interactionCreate', async interaction => {
 
         // TICKET SELECIONADO
         if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
-            // AQUI ESTÁ A CORREÇÃO DO ERRO DE INTERAÇÃO
             await interaction.deferUpdate().catch(() => {});
 
             const canal = await interaction.guild.channels.create({
@@ -66,14 +58,23 @@ client.on('interactionCreate', async interaction => {
             });
 
             const embedTicket = new EmbedBuilder()
-                .setTitle("✅ Ticket Aberto")
-                .setDescription(`Ticket aberto por <@${interaction.user.id}>. Motivo: **${interaction.values[0]}**`)
-                .setColor(0x00FF00);
+                .setTitle("Ticket de Suporte")
+                .setDescription(`Seja bem-vindo(a) ao painel de controle deste ticket.\n\n**Usuário:** <@${interaction.user.id}>\n**Motivo:** ${interaction.values[0]}\n\nDependendo do horário em que este ticket foi aberto, os atendimentos podem demorar um pouquinho. Aguarde que em breve um atendente irá lhe atender.`)
+                .setColor(0x000000)
+                .setThumbnail(LINK_FOTO);
 
-            await canal.send({ embeds: [embedTicket] });
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('resolver_ticket').setLabel('Resolvido').setStyle(ButtonStyle.Secondary)
+            );
+
+            await canal.send({ embeds: [embedTicket], components: [row] });
         }
-        
-        // MANTENHA AQUI SEUS OUTROS COMANDOS DE FILA/ETC QUE VOCÊ JÁ TINHA
+
+        // FECHAR TICKET
+        if (interaction.isButton() && interaction.customId === 'resolver_ticket') {
+            await interaction.reply({ content: "Encerrando ticket em 5 segundos...", ephemeral: true });
+            setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+        }
 
     } catch (e) { console.error(e); }
 });
