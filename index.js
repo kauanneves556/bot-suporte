@@ -19,7 +19,7 @@ client.once('ready', async () => {
     await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { 
         body: [{ name: 'setup-ticket', description: 'Cria o painel de suporte' }] 
     });
-    console.log('✅ Bot Reduto Operacional!');
+    console.log('✅ Bot operando sem erros!');
 });
 
 client.on('interactionCreate', async interaction => {
@@ -27,7 +27,7 @@ client.on('interactionCreate', async interaction => {
         if (interaction.isChatInputCommand() && interaction.commandName === 'setup-ticket') {
             const embed = new EmbedBuilder()
                 .setTitle("🛠️ CENTRAL DE ATENDIMENTO | REDUTO")
-                .setDescription("Precisa de ajuda ou quer tirar alguma dúvida? Escolha o motivo abaixo:")
+                .setDescription("Precisa de ajuda? Escolha o motivo abaixo:")
                 .setColor(0x000000)
                 .setThumbnail(LINK_FOTO);
 
@@ -44,7 +44,6 @@ client.on('interactionCreate', async interaction => {
 
         if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
             await interaction.deferUpdate().catch(() => {});
-
             const canal = await interaction.guild.channels.create({
                 name: `ticket-${interaction.user.username}`,
                 type: ChannelType.GuildText,
@@ -56,7 +55,7 @@ client.on('interactionCreate', async interaction => {
 
             const embedTicket = new EmbedBuilder()
                 .setTitle("Ticket de Suporte")
-                .setDescription(`**Usuário:** <@${interaction.user.id}>\n**Motivo:** ${interaction.values[0]}\n\nAguarde um atendente.`)
+                .setDescription(`Bem-vindo, ${interaction.user.username}.\n\nUm atendente virá em breve. Por favor, detalhe seu problema aqui para agilizar o atendimento.`)
                 .setColor(0x000000)
                 .setThumbnail(LINK_FOTO);
 
@@ -68,12 +67,12 @@ client.on('interactionCreate', async interaction => {
             
             const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
-                logChannel.send(`📝 **Novo Ticket:** ${canal.toString()} | 👤 ${interaction.user.tag}`);
+                logChannel.send(`📝 **Novo Ticket:** ${canal.toString()} | 👤 ${interaction.user.username}`);
             }
         }
 
         if (interaction.isButton() && interaction.customId === 'resolver_ticket') {
-            await interaction.reply({ content: "Encerrando canal...", ephemeral: true });
+            await interaction.reply({ content: "Encerrando ticket...", ephemeral: true });
             setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
         }
     } catch (e) { console.error(e); }
