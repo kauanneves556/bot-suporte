@@ -17,7 +17,7 @@ client.once('ready', async () => {
     const channel = client.channels.cache.get(VOICE_ID);
     if (channel) {
         joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
-        console.log('🤖 Bot Reduto Online!');
+        console.log('🤖 Bot Reduto Online e na Call!');
     }
 
     const commands = [
@@ -36,28 +36,80 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
         if (!interaction.member.roles.cache.has(CARGO_ID)) return await interaction.reply({ content: '❌ Sem permissão.', ephemeral: true });
 
+        // --- PAINEL DA LOJA (TURBINADO) ---
         if (interaction.commandName === 'setup-loja') {
-            const embed = new EmbedBuilder().setTitle("🛒 LOJA REDUTO").setColor('#0f0f0f').setImage(LINK_FOTO)
-                .setDescription(`Selecione um produto:\n\n🛒 Vendas: ${estoque.vendas}\n🎟️ Tickets: ${estoque.ticket}\n👋 Boas-vindas: ${estoque.boasvindas}\n🤖 Complect: ${estoque.complect}`);
-            const menu = new StringSelectMenuBuilder().setCustomId('menu_compra').setPlaceholder('Escolha um produto').addOptions([
+            const embed = new EmbedBuilder()
+                .setTitle("🛒 LOJA PREMIUM | REDUTO SERVICES")
+                .setColor('#0f0f0f')
+                .setImage(LINK_FOTO)
+                .setDescription(
+                    `Bem-vindo à nossa central de vendas automatizada.\n\n` +
+                    `📌 **SOBRE NOSSOS PRODUTOS:**\n` +
+                    `Produtos otimizados para alta performance e segurança total.\n\n` +
+                    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                    `📦 **ESTOQUE DISPONÍVEL:**`
+                )
+                .addFields(
+                    { name: '🛒 Bot de Vendas', value: `\`${estoque.vendas} un.\``, inline: true },
+                    { name: '🎟️ Bot de Tickets', value: `\`${estoque.ticket} un.\``, inline: true },
+                    { name: '👋 Boas-vindas', value: `\`${estoque.boasvindas} un.\``, inline: true },
+                    { name: '🤖 Bot Complect', value: `\`${estoque.complect} un.\``, inline: true },
+                    { name: '━━━━━━━━━━━━━━━━━━━━━━━━━━', value: ' ' },
+                    { name: '✨ VANTAGENS:', value: `✅ Entrega Automática\n🛡️ Segurança Total\n🚀 Hospedagem 24/7` },
+                    { name: '━━━━━━━━━━━━━━━━━━━━━━━━━━', value: ' ' }
+                )
+                .setFooter({ text: 'Reduto Services - Entrega Automática', iconURL: interaction.guild.iconURL() });
+
+            const menu = new StringSelectMenuBuilder().setCustomId('menu_compra').setPlaceholder('Selecione o produto').addOptions([
                 { label: 'Bot de Vendas', value: 'vendas', emoji: '🛒' },
                 { label: 'Bot de Tickets', value: 'ticket', emoji: '🎟️' },
                 { label: 'Bot Boas-vindas', value: 'boasvindas', emoji: '👋' },
                 { label: 'Bot Complect', value: 'complect', emoji: '🤖' }
             ]);
+
             await interaction.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
             await interaction.reply({ content: '✅ Painel loja enviado!', ephemeral: true });
         }
 
+        // --- PAINEL DE SUPORTE (TURBINADO E GIGRANTE) ---
         if (interaction.commandName === 'setup-ticket') {
-            const embed = new EmbedBuilder().setTitle("🔧 CENTRAL DE SUPORTE REDUTO").setColor('#0f0f0f').setDescription("Selecione o motivo:");
-            const menu = new StringSelectMenuBuilder().setCustomId('menu_suporte').setPlaceholder('Escolha o motivo').addOptions([
-                { label: 'Suporte Geral', value: 'suporte', emoji: '🔧' },
-                { label: 'Reembolso', value: 'reembolso', emoji: '💰' },
-                { label: 'Outros', value: 'outros', emoji: '💼' }
-            ]);
+            const embed = new EmbedBuilder()
+                .setTitle("🔧 CENTRAL DE ATENDIMENTO | REDUTO")
+                .setColor('#0f0f0f')
+                .setThumbnail(interaction.guild.iconURL())
+                .setDescription(
+                    `Precisa de ajuda ou quer tirar alguma dúvida? Você está no lugar certo!\n\n` +
+                    `Nossa equipe de mediadores e atendentes está pronta para te auxiliar com qualquer problema ou solicitação.\n\n` +
+                    `📜 **REGRAS DO ATENDIMENTO:**\n` +
+                    `• Seja educado com os atendentes.\n` +
+                    `• Não abra tickets sem necessidade (sujeito a ban).\n` +
+                    `• Descreva seu problema com o máximo de detalhes.\n\n` +
+                    `━━━━━━━━━━━━━━━━━━━━━━━━━━`
+                )
+                .addFields(
+                    { name: '⏰ Horário de Funcionamento', value: `\`Segunda a Domingo - 24 Horas\``, inline: false },
+                    { 
+                        name: '📂 CATEGORIAS DISPONÍVEIS:', 
+                        value: `🔧 **Suporte Geral:** Dúvidas e auxílio técnico.\n` +
+                               `💰 **Reembolsos:** Problemas com pagamentos.\n` +
+                               `💼 **Parcerias:** Se deseja ser nosso parceiro.\n` +
+                               `⚠️ **Denúncias:** Reporte de jogadores ou mediadores.`
+                    },
+                    { name: '━━━━━━━━━━━━━━━━━━━━━━━━━━', value: 'Escolha abaixo o motivo do seu contato para abrir um chat privado.' }
+                )
+                .setFooter({ text: 'Reduto - Atendimento Especializado', iconURL: interaction.guild.iconURL() });
+
+            const menu = new StringSelectMenuBuilder()
+                .setCustomId('menu_suporte')
+                .setPlaceholder('Escolha o motivo do contato...')
+                .addOptions([
+                    { label: 'Suporte Geral', description: 'Dúvidas e problemas técnicos', value: 'suporte', emoji: '🔧' },
+                    { label: 'Reembolso', description: 'Problemas com compras ou pix', value: 'reembolso', emoji: '💰' },
+                    { label: 'Outros / Parcerias', description: 'Assuntos diversos', value: 'outros', emoji: '💼' }
+                ]);
+
             await interaction.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
-            await interaction.reply({ content: '✅ Painel suporte enviado!', ephemeral: true });
+            await interaction.reply({ content: '✅ Painel de suporte enviado!', ephemeral: true });
         }
         
         if (interaction.commandName === 'repor') {
@@ -72,6 +124,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
+    // --- INTERNA DO TICKET (PROFISSIONAL) ---
     if (interaction.isStringSelectMenu()) {
         const canal = await interaction.guild.channels.create({ name: `ticket-${interaction.user.username}`, type: ChannelType.GuildText });
 
