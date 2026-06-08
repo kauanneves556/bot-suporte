@@ -1,6 +1,5 @@
 const { Client, GatewayIntentBits, ActionRowBuilder, EmbedBuilder, ChannelType, REST, Routes, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
-const transcript = require('discord-html-transcripts');
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
@@ -66,7 +65,7 @@ client.on('interactionCreate', async interaction => {
             );
 
             await canal.send({ embeds: [embedTicket], components: [row] });
-
+            
             const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
                 logChannel.send(`📝 **Novo Ticket:** ${canal.toString()} | 👤 ${interaction.user.tag}`);
@@ -74,15 +73,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.isButton() && interaction.customId === 'resolver_ticket') {
-            await interaction.reply({ content: "Gerando transcript e encerrando...", ephemeral: true });
-            
-            const attachment = await transcript.createTranscript(interaction.channel);
-            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
-            
-            if (logChannel) {
-                await logChannel.send({ content: `📜 **Transcript de ${interaction.user.username}**`, files: [attachment] });
-            }
-            
+            await interaction.reply({ content: "Encerrando canal...", ephemeral: true });
             setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
         }
     } catch (e) { console.error(e); }
