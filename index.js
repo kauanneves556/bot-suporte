@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, ActionRowBuilder, EmbedBuilder, ChannelType, REST, Routes, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
+const transcript = require('discord-html-transcripts');
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
@@ -13,69 +14,55 @@ http.createServer((req, res) => { res.writeHead(200); res.end('Bot Online'); }).
 
 client.once('ready', async () => {
     const channel = client.channels.cache.get(VOICE_ID);
-    if (channel) {
-        joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
-    }
-    await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { 
-        body: [{ name: 'setup-ticket', description: 'Cria o painel de suporte' }] 
-    });
-    console.log('✅ Bot operando sem erros!');
+    if (channel) joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
+    console.log('✅ Bot operando!');
 });
 
 client.on('interactionCreate', async interaction => {
-    try {
-        if (interaction.isChatInputCommand() && interaction.commandName === 'setup-ticket') {
-            const embed = new EmbedBuilder()
-                .setTitle("🛠️ CENTRAL DE ATENDIMENTO | REDUTO")
-                .setDescription("Precisa de ajuda? Escolha o motivo abaixo:")
-                .setColor(0x000000)
-                .setThumbnail(LINK_FOTO);
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
+        await interaction.deferUpdate().catch(() => {});
+        const canal = await interaction.guild.channels.create({
+            name: `ticket-${interaction.user.username}`,
+            type: ChannelType.GuildText,
+            permissionOverwrites: [
+                { id: interaction.guild.id, deny: ['ViewChannel'] },
+                { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }
+            ]
+        });
 
-            const menu = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder().setCustomId('ticket_select').setPlaceholder('Escolha o motivo...').addOptions([
-                    { label: 'Suporte Geral', value: 'suporte', emoji: '🔧' },
-                    { label: 'Reembolso', value: 'reembolso', emoji: '💰' },
-                    { label: 'Parcerias', value: 'parcerias', emoji: '💼' },
-                    { label: 'Vagas de Mediador', value: 'vagas', emoji: '👔' }
-                ])
-            );
-            return await interaction.reply({ embeds: [embed], components: [menu] });
-        }
+        const embedTicket = new EmbedBuilder()
+            .setTitle("Ticket de Suporte")
+            .setDescription(`**Usuário:** <@${interaction.user.id}>\n**Motivo:** ${interaction.values[0]}\n\nAguarde um atendente.`)
+            .setColor(0x000000)
+            .setThumbnail(LINK_FOTO);
 
-        if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
-            await interaction.deferUpdate().catch(() => {});
-            const canal = await interaction.guild.channels.create({
-                name: `ticket-${interaction.user.username}`,
-                type: ChannelType.GuildText,
-                permissionOverwrites: [
-                    { id: interaction.guild.id, deny: ['ViewChannel'] },
-                    { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }
-                ]
-            });
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('resolver_ticket').setLabel('Resolvido').setStyle(ButtonStyle.Secondary)
+        );
 
-            const embedTicket = new EmbedBuilder()
-                .setTitle("Ticket de Suporte")
-                .setDescription(`Bem-vindo, ${interaction.user.username}.\n\nUm atendente virá em breve. Por favor, detalhe seu problema aqui para agilizar o atendimento.`)
-                .setColor(0x000000)
-                .setThumbnail(LINK_FOTO);
+        await canal.send({ embeds: [embedTicket], components: [row] });
+        const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) logChannel.send(`📝 **Novo Ticket:** ${canal.toString()} | 👤 ${interaction.user.tag}`);
+    }
 
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('resolver_ticket').setLabel('Resolvido').setStyle(ButtonStyle.Secondary)
-            );
-
-            await canal.send({ embeds: [embedTicket], components: [row] });
-            
+    if (interaction.isButton() && interaction.customId === 'resolver_ticket') {
+        const canal = interaction.channel;
+        await interaction.reply({ content: "Gerando histórico...", ephemeral: true });
+        
+        try {
+            const attachment = await transcript.createTranscript(canal);
             const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
-                logChannel.send(`📝 **Novo Ticket:** ${canal.toString()} | 👤 ${interaction.user.username}`);
+                await logChannel.send({ 
+                    content: `📜 **Ticket Fechado**\nUsuário: ${interaction.user.tag}\nCanal: ${canal.name}`, 
+                    files: [attachment] 
+                });
             }
+        } catch (err) {
+            console.error("Erro ao gerar transcript:", err);
         }
-
-        if (interaction.isButton() && interaction.customId === 'resolver_ticket') {
-            await interaction.reply({ content: "Encerrando ticket...", ephemeral: true });
-            setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
-        }
-    } catch (e) { console.error(e); }
+        await canal.delete().catch(() => {});
+    }
 });
 
 client.login(TOKEN);
