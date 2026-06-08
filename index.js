@@ -4,8 +4,8 @@ const http = require('http');
 
 const TOKEN = process.env.TOKEN;
 const VOICE_ID = '1512999528217710693';
+const LINK_FOTO = "https://cdn.discordapp.com/attachments/1512591953529803014/1512868218329632828/f44b70f9-c9a5-4c47-b6e7-15b08d369a1c.png";
 
-// Mantém o bot online
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot Online'); }).listen(3000);
 
 let filaData = new Map();
@@ -14,25 +14,51 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 client.once('ready', async () => {
     const channel = client.channels.cache.get(VOICE_ID);
     if (channel) joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
-    console.log('✅ Bot Operacional!');
+    
+    const cmds = ["mob1v1", "mob2v2", "mob3v3", "mob4v4", "emu1v1", "emu2v2", "emu3v3", "emu4v4", "mis2v2", "mis3v3", "mis4v4"];
+    const commands = cmds.map(name => ({ name, description: `Fila ${name}` }));
+    commands.push({ name: 'setup-ticket', description: 'Painel suporte' }, { name: 'setup-loja', description: 'Painel loja' });
+    
+    await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { body: commands });
+    console.log('✅ Bot Reduto Operacional!');
 });
 
 client.on('interactionCreate', async interaction => {
-    // PROTEÇÃO GERAL: Se uma interação falhar, o bot não trava
-    try {
-        // LÓGICA DE FILAS (Isolada)
-        if (interaction.isButton()) {
-            const [acao, valor, cmd] = interaction.customId.split('_');
+    // --- LÓGICA DE COMANDOS (SLASHS) ---
+    if (interaction.isChatInputCommand()) {
+        const cmd = interaction.commandName;
+        if (cmd.startsWith('mob') || cmd.startsWith('emu') || cmd.startsWith('mis')) {
+            const prefixos = { 'mob': 'Mobile', 'emu': 'Emulador', 'mis': 'Mista' };
+            const prefixo = prefixos[cmd.substring(0, 3)];
+            const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
             
-            // Só executa se for um botão de fila (ignora botões de ticket/loja)
-            if (['infinito', 'normal', 'sair'].includes(acao)) {
-                await interaction.deferUpdate(); // Evita o erro de "Interação falhou"
+            const vals = ["100,00", "50,00", "20,00", "10,00", "5,00", "3,00", "2,00", "1,00", "0,50", "0,30"];
+            for (const v of vals) {
+                const embed = new EmbedBuilder().setTitle(`🎮 FILA ${prefixo.toUpperCase()} ${modo}`).setColor('#000000').setThumbnail(LINK_FOTO)
+                    .setDescription(`**Valor:** R$ ${v}\n\n👤 **Gel Infinito:**\nNinguém.\n\n👤 **Gel Normal:**\nNinguém.`);
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`infinito_${v}_${cmd}`).setLabel('Gel Infinito').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId(`normal_${v}_${cmd}`).setLabel('Gel Normal').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId(`sair_${v}_${cmd}`).setLabel('Sair').setStyle(ButtonStyle.Danger)
+                );
+                await interaction.channel.send({ embeds: [embed], components: [row] });
+            }
+            return interaction.reply({ content: `✅ Painéis criados.`, ephemeral: true });
+        }
+        // COLE SEU CÓDIGO DE LOJA/TICKET AQUI:
+    }
 
+    // --- LÓGICA DE BOTÕES ---
+    if (interaction.isButton()) {
+        const [acao, valor, cmd] = interaction.customId.split('_');
+        
+        // Verifica se é botão de fila ou ticket
+        if (['infinito', 'normal', 'sair'].includes(acao)) {
+            try {
+                await interaction.deferUpdate();
                 const limites = { "1v1": 2, "2v2": 4, "3v3": 6, "4v4": 8 };
                 const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
-                
-                const keyInf = `infinito_${valor}_${cmd}`;
-                const keyNor = `normal_${valor}_${cmd}`;
+                const keyInf = `infinito_${valor}_${cmd}`, keyNor = `normal_${valor}_${cmd}`;
 
                 if (!filaData.has(keyInf)) filaData.set(keyInf, []);
                 if (!filaData.has(keyNor)) filaData.set(keyNor, []);
@@ -41,30 +67,23 @@ client.on('interactionCreate', async interaction => {
                     filaData.set(keyInf, filaData.get(keyInf).filter(id => id !== interaction.user.id));
                     filaData.set(keyNor, filaData.get(keyNor).filter(id => id !== interaction.user.id));
                 } else {
-                    const targetKey = (acao === 'infinito') ? keyInf : keyNor;
-                    let list = filaData.get(targetKey);
-                    if (!list.includes(interaction.user.id)) {
-                        list.push(interaction.user.id);
-                        filaData.set(targetKey, list);
-                    }
-                    
-                    // Verifica se encheu
+                    const target = (acao === 'infinito') ? keyInf : keyNor;
+                    let list = filaData.get(target);
+                    if (!list.includes(interaction.user.id)) { list.push(interaction.user.id); filaData.set(target, list); }
                     if (list.length === limites[modo]) {
                         const canal = await interaction.guild.channels.create({ name: `fila-${cmd}-${valor}`, type: ChannelType.GuildText });
                         await canal.send(`✅ Partida fechada! Jogadores: ${list.map(id => `<@${id}>`).join(', ')}`);
-                        filaData.set(targetKey, []);
+                        filaData.set(target, []);
                     }
                 }
-
-                // Atualiza o painel visual
                 const embed = EmbedBuilder.from(interaction.message.embeds[0]).setDescription(
                     `**Valor:** R$ ${valor}\n\n👤 **Gel Infinito:**\n${filaData.get(keyInf).map(id => `<@${id}>`).join('\n') || 'Ninguém.'}\n\n👤 **Gel Normal:**\n${filaData.get(keyNor).map(id => `<@${id}>`).join('\n') || 'Ninguém.'}`
                 );
                 await interaction.editReply({ embeds: [embed] });
-            }
+            } catch (e) { console.error("Erro no botão:", e); }
+        } else {
+            // AQUI O BOT TRATA OS BOTÕES DE TICKET QUE NÃO SÃO DE FILA
         }
-    } catch (err) {
-        console.error("Erro capturado:", err);
     }
 });
 
