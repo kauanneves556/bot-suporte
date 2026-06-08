@@ -15,36 +15,42 @@ client.once('ready', async () => {
     const channel = client.channels.cache.get(VOICE_ID);
     if (channel) joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
     
-    const cmds = ["mob1v1", "mob2v2", "mob3v3", "mob4v4", "emu1v1", "emu2v2", "emu3v3", "emu4v4"];
+    // Lista completa: mob, emu e os novos mis
+    const cmds = ["mob1v1", "mob2v2", "mob3v3", "mob4v4", "emu1v1", "emu2v2", "emu3v3", "emu4v4", "mis2v2", "mis3v3", "mis4v4"];
     const commands = cmds.map(name => ({ name, description: `Fila ${name}` }));
     commands.push({ name: 'setup-ticket', description: 'Painel suporte' }, { name: 'setup-loja', description: 'Painel loja' });
     
     await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log('✅ Bot Operacional com todos os comandos!');
+    console.log('✅ Bot Operacional com todos os sistemas (Mob, Emu, Mis)!');
 });
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
-        if (interaction.commandName.startsWith('mob') || interaction.commandName.startsWith('emu')) {
+        const cmd = interaction.commandName;
+        if (cmd.startsWith('mob') || cmd.startsWith('emu') || cmd.startsWith('mis')) {
+            const prefixos = { 'mob': 'Mobile', 'emu': 'Emulador', 'mis': 'Mista' };
+            const prefixo = prefixos[cmd.substring(0, 3)];
+            const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
+            
             const vals = ["100,00", "50,00", "20,00", "10,00", "5,00", "3,00", "2,00", "1,00", "0,50", "0,30"];
             for (const v of vals) {
-                const embed = new EmbedBuilder().setTitle(`🎮 FILA ${interaction.commandName.toUpperCase()}`).setColor('#000000').setThumbnail(LINK_FOTO)
+                const embed = new EmbedBuilder().setTitle(`🎮 FILA ${prefixo.toUpperCase()} ${modo}`).setColor('#000000').setThumbnail(LINK_FOTO)
                     .setDescription(`**Valor:** R$ ${v}\n\n👤 **Gel Infinito:** Ninguém.\n👤 **Gel Normal:** Ninguém.`);
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`infinito_${v}_${interaction.commandName}`).setLabel('Gel Infinito').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId(`normal_${v}_${interaction.commandName}`).setLabel('Gel Normal').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId(`sair_${v}_${interaction.commandName}`).setLabel('Sair').setStyle(ButtonStyle.Danger)
+                    new ButtonBuilder().setCustomId(`infinito_${v}_${cmd}`).setLabel('Gel Infinito').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId(`normal_${v}_${cmd}`).setLabel('Gel Normal').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId(`sair_${v}_${cmd}`).setLabel('Sair').setStyle(ButtonStyle.Danger)
                 );
                 await interaction.channel.send({ embeds: [embed], components: [row] });
             }
-            return interaction.reply({ content: `✅ Painéis ${interaction.commandName} criados.`, ephemeral: true });
+            return interaction.reply({ content: `✅ Painéis ${prefixo} ${modo} criados.`, ephemeral: true });
         }
     }
 
     if (interaction.isButton()) {
         const [acao, valor, cmd] = interaction.customId.split('_');
         const limites = { "1v1": 2, "2v2": 4, "3v3": 6, "4v4": 8 };
-        const modo = cmd.replace('mob', '').replace('emu', '');
+        const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
         
         const keyInf = `infinito_${valor}_${cmd}`;
         const keyNor = `normal_${valor}_${cmd}`;
