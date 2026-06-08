@@ -18,44 +18,41 @@ client.once('ready', async () => {
     const cmds = ["mob1v1", "mob2v2", "mob3v3", "mob4v4", "emu1v1", "emu2v2", "emu3v3", "emu4v4", "mis2v2", "mis3v3", "mis4v4"];
     const commands = cmds.map(name => ({ name, description: `Fila ${name}` }));
     commands.push({ name: 'setup-ticket', description: 'Painel suporte' }, { name: 'setup-loja', description: 'Painel loja' });
-    
     await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { body: commands });
     console.log('✅ Bot Reduto Operacional!');
 });
 
 client.on('interactionCreate', async interaction => {
-    // --- LÓGICA DE COMANDOS (SLASHS) ---
-    if (interaction.isChatInputCommand()) {
-        const cmd = interaction.commandName;
-        if (cmd.startsWith('mob') || cmd.startsWith('emu') || cmd.startsWith('mis')) {
-            const prefixos = { 'mob': 'Mobile', 'emu': 'Emulador', 'mis': 'Mista' };
-            const prefixo = prefixos[cmd.substring(0, 3)];
-            const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
-            
-            const vals = ["100,00", "50,00", "20,00", "10,00", "5,00", "3,00", "2,00", "1,00", "0,50", "0,30"];
-            for (const v of vals) {
-                const embed = new EmbedBuilder().setTitle(`🎮 FILA ${prefixo.toUpperCase()} ${modo}`).setColor('#000000').setThumbnail(LINK_FOTO)
-                    .setDescription(`**Valor:** R$ ${v}\n\n👤 **Gel Infinito:**\nNinguém.\n\n👤 **Gel Normal:**\nNinguém.`);
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`infinito_${v}_${cmd}`).setLabel('Gel Infinito').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId(`normal_${v}_${cmd}`).setLabel('Gel Normal').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId(`sair_${v}_${cmd}`).setLabel('Sair').setStyle(ButtonStyle.Danger)
-                );
-                await interaction.channel.send({ embeds: [embed], components: [row] });
+    try {
+        // --- 1. COMANDOS DE FILA ---
+        if (interaction.isChatInputCommand()) {
+            const cmd = interaction.commandName;
+            if (['mob', 'emu', 'mis'].some(p => cmd.startsWith(p))) {
+                const prefixos = { 'mob': 'Mobile', 'emu': 'Emulador', 'mis': 'Mista' };
+                const prefixo = prefixos[cmd.substring(0, 3)];
+                const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
+                const vals = ["100,00", "50,00", "20,00", "10,00", "5,00", "3,00", "2,00", "1,00", "0,50", "0,30"];
+                for (const v of vals) {
+                    const embed = new EmbedBuilder().setTitle(`🎮 FILA ${prefixo.toUpperCase()} ${modo}`).setColor('#000000').setThumbnail(LINK_FOTO)
+                        .setDescription(`**Valor:** R$ ${v}\n\n👤 **Gel Infinito:** Ninguém.\n👤 **Gel Normal:** Ninguém.`);
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId(`infinito_${v}_${cmd}`).setLabel('Gel Infinito').setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder().setCustomId(`normal_${v}_${cmd}`).setLabel('Gel Normal').setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder().setCustomId(`sair_${v}_${cmd}`).setLabel('Sair').setStyle(ButtonStyle.Danger)
+                    );
+                    await interaction.channel.send({ embeds: [embed], components: [row] });
+                }
+                return interaction.reply({ content: `✅ Painéis criados.`, ephemeral: true });
             }
-            return interaction.reply({ content: `✅ Painéis criados.`, ephemeral: true });
         }
-        // COLE SEU CÓDIGO DE LOJA/TICKET AQUI:
-    }
 
-    // --- LÓGICA DE BOTÕES ---
-    if (interaction.isButton()) {
-        const [acao, valor, cmd] = interaction.customId.split('_');
-        
-        // Verifica se é botão de fila ou ticket
-        if (['infinito', 'normal', 'sair'].includes(acao)) {
-            try {
-                await interaction.deferUpdate();
+        // --- 2. BOTÕES (FILA + TICKET) ---
+        if (interaction.isButton()) {
+            const [acao, valor, cmd] = interaction.customId.split('_');
+            
+            // FILTRO DE SEGURANÇA: Se não for botão de fila, o código nem tenta rodar a lógica de fila
+            if (['infinito', 'normal', 'sair'].includes(acao)) {
+                await interaction.deferUpdate().catch(() => {});
                 const limites = { "1v1": 2, "2v2": 4, "3v3": 6, "4v4": 8 };
                 const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
                 const keyInf = `infinito_${valor}_${cmd}`, keyNor = `normal_${valor}_${cmd}`;
@@ -79,11 +76,11 @@ client.on('interactionCreate', async interaction => {
                 const embed = EmbedBuilder.from(interaction.message.embeds[0]).setDescription(
                     `**Valor:** R$ ${valor}\n\n👤 **Gel Infinito:**\n${filaData.get(keyInf).map(id => `<@${id}>`).join('\n') || 'Ninguém.'}\n\n👤 **Gel Normal:**\n${filaData.get(keyNor).map(id => `<@${id}>`).join('\n') || 'Ninguém.'}`
                 );
-                await interaction.editReply({ embeds: [embed] });
-            } catch (e) { console.error("Erro no botão:", e); }
-        } else {
-            // AQUI O BOT TRATA OS BOTÕES DE TICKET QUE NÃO SÃO DE FILA
+                await interaction.editReply({ embeds: [embed] }).catch(() => {});
+            }
         }
+    } catch (e) {
+        console.error("Erro ignorado:", e);
     }
 });
 
