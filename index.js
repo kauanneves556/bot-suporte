@@ -1,9 +1,11 @@
 const { Client, GatewayIntentBits, ActionRowBuilder, EmbedBuilder, ChannelType, REST, Routes, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
+const transcript = require('discord-html-transcripts');
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
-const VOICE_ID = '1512999528217710693'; 
+const VOICE_ID = '1512999528217710693';
+const LOG_CHANNEL_ID = '1512516747390091496';
 const LINK_FOTO = "https://cdn.discordapp.com/attachments/1512591953529803014/1512868218329632828/f44b70f9-c9a5-4c47-b6e7-15b08d369a1c.png";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates] });
@@ -15,36 +17,32 @@ client.once('ready', async () => {
     if (channel) {
         joinVoiceChannel({ channelId: channel.id, guildId: channel.guild.id, adapterCreator: channel.guild.voiceAdapterCreator, selfDeaf: true });
     }
-
     await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { 
         body: [{ name: 'setup-ticket', description: 'Cria o painel de suporte' }] 
     });
-    console.log('✅ Bot Reduto Operacional e na Call!');
+    console.log('✅ Bot Reduto Operacional!');
 });
 
 client.on('interactionCreate', async interaction => {
     try {
-        // SETUP TICKET
         if (interaction.isChatInputCommand() && interaction.commandName === 'setup-ticket') {
             const embed = new EmbedBuilder()
                 .setTitle("🛠️ CENTRAL DE ATENDIMENTO | REDUTO")
-                .setDescription("Precisa de ajuda ou quer tirar alguma dúvida? Você está no lugar certo!\n\nNossa equipe de mediadores e atendentes está pronta para te auxiliar com qualquer problema ou solicitação.\n\n📜 **REGRAS DO ATENDIMENTO:**\n• Seja educado com os atendentes.\n• Não abra tickets sem necessidade.\n• Descreva seu problema com detalhes.\n\n__________________________\n\n⏰ **Horário de Funcionamento**\n`Segunda a Domingo - 24 Horas`\n\n📁 **CATEGORIAS DISPONÍVEIS:**\n🔧 **Suporte Geral:** Dúvidas e auxílio técnico.\n💰 **Reembolsos:** Problemas com pagamentos.\n💼 **Parcerias:** Se deseja ser nosso parceiro.\n⚠️ **Denúncias:** Reporte de jogadores ou mediadores.\n👔 **Vagas de Mediador:** Candidaturas para a equipe.\n\n__________________________\n\nEscolha abaixo o motivo do seu contato para abrir um chat privado.")
+                .setDescription("Precisa de ajuda ou quer tirar alguma dúvida? Escolha o motivo abaixo:")
                 .setColor(0x000000)
-                .setThumbnail(LINK_FOTO)
-                .setFooter({ text: "Reduto - Atendimento Especializado" });
+                .setThumbnail(LINK_FOTO);
 
             const menu = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder().setCustomId('ticket_select').setPlaceholder('Escolha o motivo do contato...').addOptions([
-                    { label: 'Suporte Geral', value: 'suporte', description: 'Dúvidas e problemas técnicos', emoji: '🔧' },
-                    { label: 'Reembolso', value: 'reembolso', description: 'Problemas com compras ou pix', emoji: '💰' },
-                    { label: 'Outros / Parcerias', value: 'parcerias', description: 'Assuntos diversos', emoji: '💼' },
-                    { label: 'Vagas de Mediador', value: 'vagas', description: 'Candidaturas para a equipe', emoji: '👔' }
+                new StringSelectMenuBuilder().setCustomId('ticket_select').setPlaceholder('Escolha o motivo...').addOptions([
+                    { label: 'Suporte Geral', value: 'suporte', emoji: '🔧' },
+                    { label: 'Reembolso', value: 'reembolso', emoji: '💰' },
+                    { label: 'Parcerias', value: 'parcerias', emoji: '💼' },
+                    { label: 'Vagas de Mediador', value: 'vagas', emoji: '👔' }
                 ])
             );
             return await interaction.reply({ embeds: [embed], components: [menu] });
         }
 
-        // TICKET SELECIONADO
         if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
             await interaction.deferUpdate().catch(() => {});
 
@@ -59,7 +57,7 @@ client.on('interactionCreate', async interaction => {
 
             const embedTicket = new EmbedBuilder()
                 .setTitle("Ticket de Suporte")
-                .setDescription(`Seja bem-vindo(a) ao painel de controle deste ticket.\n\n**Usuário:** <@${interaction.user.id}>\n**Motivo:** ${interaction.values[0]}\n\nDependendo do horário em que este ticket foi aberto, os atendimentos podem demorar um pouquinho. Aguarde que em breve um atendente irá lhe atender.`)
+                .setDescription(`**Usuário:** <@${interaction.user.id}>\n**Motivo:** ${interaction.values[0]}\n\nAguarde um atendente.`)
                 .setColor(0x000000)
                 .setThumbnail(LINK_FOTO);
 
@@ -68,14 +66,25 @@ client.on('interactionCreate', async interaction => {
             );
 
             await canal.send({ embeds: [embedTicket], components: [row] });
+
+            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+            if (logChannel) {
+                logChannel.send(`📝 **Novo Ticket:** ${canal.toString()} | 👤 ${interaction.user.tag}`);
+            }
         }
 
-        // FECHAR TICKET
         if (interaction.isButton() && interaction.customId === 'resolver_ticket') {
-            await interaction.reply({ content: "Encerrando ticket em 5 segundos...", ephemeral: true });
-            setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+            await interaction.reply({ content: "Gerando transcript e encerrando...", ephemeral: true });
+            
+            const attachment = await transcript.createTranscript(interaction.channel);
+            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+            
+            if (logChannel) {
+                await logChannel.send({ content: `📜 **Transcript de ${interaction.user.username}**`, files: [attachment] });
+            }
+            
+            setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
         }
-
     } catch (e) { console.error(e); }
 });
 
