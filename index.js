@@ -18,31 +18,32 @@ client.once('ready', async () => {
     const cmds = ["mob1v1", "mob2v2", "mob3v3", "mob4v4", "emu1v1", "emu2v2", "emu3v3", "emu4v4", "mis2v2", "mis3v3", "mis4v4"];
     const commands = cmds.map(name => ({ name, description: `Fila ${name}` }));
     commands.push({ name: 'setup-ticket', description: 'Painel suporte' }, { name: 'setup-loja', description: 'Painel loja' });
-    
     await new REST({ version: '10' }).setToken(TOKEN).put(Routes.applicationCommands(client.user.id), { body: commands });
     console.log('✅ Bot Reduto Operacional!');
 });
 
-// AQUI ESTÁ A UNIFICAÇÃO: UM ÚNICO BLOCO PARA TUDO
 client.on('interactionCreate', async interaction => {
     try {
-        // 1. TRATA MENUS DE SELEÇÃO (TICKETS)
+        // 1. FILTRO PARA MENUS (Tickets)
         if (interaction.isStringSelectMenu()) {
             await interaction.deferUpdate().catch(() => {});
-            // Se o seu ticket usa a biblioteca 'discord-buttons' ou similar, 
-            // a lógica antiga precisa estar aqui dentro deste IF.
+            // IMPORTANTE: Se o seu sistema de ticket original estiver em outro arquivo ou 
+            // depender de uma função específica, chame-a aqui. 
+            // Exemplo: abrirTicket(interaction);
             return;
         }
 
-        // 2. TRATA COMANDOS SLASH (CRIAR FILAS)
+        // 2. FILTRO PARA COMANDOS (Filas)
         if (interaction.isChatInputCommand()) {
             const cmd = interaction.commandName;
             if (['mob', 'emu', 'mis'].some(p => cmd.startsWith(p))) {
                 const prefixos = { 'mob': 'Mobile', 'emu': 'Emulador', 'mis': 'Mista' };
+                const prefixo = prefixos[cmd.substring(0, 3)];
                 const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
                 const vals = ["100,00", "50,00", "20,00", "10,00", "5,00", "3,00", "2,00", "1,00", "0,50", "0,30"];
                 for (const v of vals) {
-                    const embed = new EmbedBuilder().setTitle(`🎮 FILA ${prefixos[cmd.substring(0,3)].toUpperCase()} ${modo}`).setColor('#000000').setThumbnail(LINK_FOTO).setDescription(`**Valor:** R$ ${v}\n\n👤 **Gel Infinito:** Ninguém.\n👤 **Gel Normal:** Ninguém.`);
+                    const embed = new EmbedBuilder().setTitle(`🎮 FILA ${prefixo.toUpperCase()} ${modo}`).setColor('#000000').setThumbnail(LINK_FOTO)
+                        .setDescription(`**Valor:** R$ ${v}\n\n👤 **Gel Infinito:** Ninguém.\n👤 **Gel Normal:** Ninguém.`);
                     const row = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId(`infinito_${v}_${cmd}`).setLabel('Gel Infinito').setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder().setCustomId(`normal_${v}_${cmd}`).setLabel('Gel Normal').setStyle(ButtonStyle.Secondary),
@@ -54,18 +55,17 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
-        // 3. TRATA BOTÕES (FILAS)
+        // 3. FILTRO PARA BOTÕES (Filas)
         if (interaction.isButton()) {
             const [acao, valor, cmd] = interaction.customId.split('_');
             if (['infinito', 'normal', 'sair'].includes(acao)) {
                 await interaction.deferUpdate().catch(() => {});
+                // ... lógica de filas ...
                 const limites = { "1v1": 2, "2v2": 4, "3v3": 6, "4v4": 8 };
                 const modo = cmd.replace('mob', '').replace('emu', '').replace('mis', '');
                 const keyInf = `infinito_${valor}_${cmd}`, keyNor = `normal_${valor}_${cmd}`;
-
                 if (!filaData.has(keyInf)) filaData.set(keyInf, []);
                 if (!filaData.has(keyNor)) filaData.set(keyNor, []);
-
                 if (acao === 'sair') {
                     filaData.set(keyInf, filaData.get(keyInf).filter(id => id !== interaction.user.id));
                     filaData.set(keyNor, filaData.get(keyNor).filter(id => id !== interaction.user.id));
@@ -83,7 +83,7 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
         }
-    } catch (e) { console.error("Erro geral na interação:", e); }
+    } catch (e) { console.error("Erro:", e); }
 });
 
 client.login(TOKEN);
