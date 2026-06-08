@@ -4,7 +4,6 @@ const http = require('http');
 const TOKEN = process.env.TOKEN;
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
-// Mantém o bot vivo no Render
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot Online'); }).listen(process.env.PORT || 3000);
 
 client.once('ready', async () => {
@@ -16,13 +15,8 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     try {
-        // SETUP DO PAINEL
         if (interaction.isChatInputCommand() && interaction.commandName === 'setup-ticket') {
-            const embed = new EmbedBuilder()
-                .setTitle("🛠️ CENTRAL DE ATENDIMENTO")
-                .setDescription("Escolha o motivo abaixo:")
-                .setColor(0x000000);
-
+            const embed = new EmbedBuilder().setTitle("🛠️ CENTRAL DE ATENDIMENTO").setDescription("Escolha o motivo abaixo:").setColor(0x000000);
             const menu = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder().setCustomId('ticket_select').setPlaceholder('Escolha o motivo...').addOptions([
                     { label: 'Suporte', value: 'suporte', emoji: '🔧' },
@@ -30,12 +24,12 @@ client.on('interactionCreate', async interaction => {
                     { label: 'Parcerias', value: 'parcerias', emoji: '💼' }
                 ])
             );
-            await interaction.reply({ embeds: [embed], components: [menu] });
+            return await interaction.reply({ embeds: [embed], components: [menu] });
         }
 
-        // CRIAÇÃO DO TICKET
         if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
-            await interaction.deferUpdate(); // Responde ao Discord IMEDIATAMENTE
+            // DEFER GARENTE QUE O DISCORD NÃO DÊ FALHA
+            await interaction.deferUpdate(); 
 
             const canal = await interaction.guild.channels.create({
                 name: `ticket-${interaction.user.username}`,
@@ -46,24 +40,19 @@ client.on('interactionCreate', async interaction => {
                 ]
             });
 
-            const embedTicket = new EmbedBuilder()
-                .setTitle("✅ TICKET ABERTO")
-                .setDescription(`Motivo: ${interaction.values[0]}`)
-                .setColor(0x00FF00);
-
+            const embedTicket = new EmbedBuilder().setTitle("✅ TICKET ABERTO").setDescription(`Motivo: ${interaction.values[0]}`).setColor(0x00FF00);
             const botao = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('resolver').setLabel('RESOLVIDO').setStyle(ButtonStyle.Success)
             );
 
-            await canal.send({ embeds: [embedTicket], components: [botao] });
+            return await canal.send({ embeds: [embedTicket], components: [botao] });
         }
 
-        // DELETAR TICKET
         if (interaction.isButton() && interaction.customId === 'resolver') {
-            await interaction.reply("Fechando canal...");
-            setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
+            await interaction.reply("Fechando...");
+            return setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
         }
-    } catch (e) { console.error("Erro:", e); }
+    } catch (e) { console.error(e); }
 });
 
 client.login(TOKEN);
