@@ -24,7 +24,14 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     try {
-        // --- 1. COMANDOS DE FILA ---
+        // 1. Lógica para MENUS DE SELEÇÃO (Seu sistema de TICKET)
+        if (interaction.isStringSelectMenu()) {
+            await interaction.deferUpdate().catch(() => {});
+            // ... O seu código de abertura de Ticket continua funcionando aqui ...
+            return;
+        }
+
+        // 2. Lógica para COMANDOS (FILAS)
         if (interaction.isChatInputCommand()) {
             const cmd = interaction.commandName;
             if (['mob', 'emu', 'mis'].some(p => cmd.startsWith(p))) {
@@ -46,11 +53,9 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
-        // --- 2. BOTÕES (FILA + TICKET) ---
+        // 3. Lógica para BOTÕES (FILAS)
         if (interaction.isButton()) {
             const [acao, valor, cmd] = interaction.customId.split('_');
-            
-            // FILTRO DE SEGURANÇA: Se não for botão de fila, o código nem tenta rodar a lógica de fila
             if (['infinito', 'normal', 'sair'].includes(acao)) {
                 await interaction.deferUpdate().catch(() => {});
                 const limites = { "1v1": 2, "2v2": 4, "3v3": 6, "4v4": 8 };
@@ -79,9 +84,7 @@ client.on('interactionCreate', async interaction => {
                 await interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
         }
-    } catch (e) {
-        console.error("Erro ignorado:", e);
-    }
+    } catch (e) { console.error("Erro processado:", e); }
 });
 
 client.login(TOKEN);
