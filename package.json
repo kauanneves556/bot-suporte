@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "discord.js": "^14.26.4",
-    "@discordjs/voice": "^0.17.0"
+    "@discordjs/voice": "^0.17.0",
+    "discord-html-transcripts": "^3.2.0"
   }
 }
